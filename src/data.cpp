@@ -1,19 +1,21 @@
 #include "data.hpp"
 
-Data::Data(GridInfo &ginfo)
+Data::Data(InputParameters &input)
 {
-    nx1_   = ginfo.nx1_;
-    nx2_   = ginfo.nx2_;
-    nx3_   = ginfo.nx3_;
-    ngh_   = ginfo.nx3_;
-    x1min_ = ginfo.x1min_;
-    x1max_ = ginfo.x1max_;
-    x2min_ = ginfo.x2min_;
-    x2max_ = ginfo.x2max_;
-    x3min_ = ginfo.x3min_;
-    x3max_ = ginfo.x3max_;
+    nx1_   = input.nx1_;
+    nx2_   = input.nx2_;
+    nx3_   = input.nx3_;
+    ngh_   = input.nx3_;
+    x1min_ = input.x1min_;
+    x1max_ = input.x1max_;
+    x2min_ = input.x2min_;
+    x2max_ = input.x2max_;
+    x3min_ = input.x3min_;
+    x3max_ = input.x3max_;
+    time_.tlim_ = input.tlim_;
+    dir_name_ = input.dir_name_;
+    time_.t_ = 0.0;
 
-    SetData();
     mkdir(dir_name_.c_str(), 0777);
 
     // set grid indices

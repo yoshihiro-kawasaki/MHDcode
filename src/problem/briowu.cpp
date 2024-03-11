@@ -1,7 +1,7 @@
 #include "../data.hpp"
 #include "../driver.hpp"
 
-void GridInfo::SetGridInfo()
+void InputParameters::SetParameters()
 {
     nx1_   = 64;
     x1min_ = -0.5;
@@ -17,14 +17,11 @@ void GridInfo::SetGridInfo()
 
     ngh_   = 2;
 
-    is_set_gridinfo_ = true;
-}
+    tlim_ = 0.1;
 
-void Data::SetData()
-{
-    time_.t_    = 0.0;
-    time_.tlim_ = 0.1;
     dir_name_   = "output/briowu";
+
+    is_set_params_ = true;
 }
 
 

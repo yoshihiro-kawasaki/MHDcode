@@ -9,14 +9,14 @@ int main(const int argc, const char* argv[])
     Timer timer;
     timer.Start();
 
-    GridInfo ginfo;
-    ginfo.SetGridInfo();
-    if (! ginfo.is_set_gridinfo_) {
+    InputParameters input;
+    input.SetParameters();
+    if (! input.is_set_params_) {
         std::cout << "Not set GridInfo" << std::endl;
         return 0;
     }
 
-    Data data(ginfo);
+    Data data(input);
 
     Driver driver(&data);
     driver.EnrollInitialConditionFunction(InitialCondition);

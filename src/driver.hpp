@@ -64,8 +64,8 @@ private:
     InitialConditionFunction  InitialCondition_;
     BoundaryConditionFunction BoundaryCondition_;
 
-    // using IntegrationFunction = void(*)(const double dt);
-    typedef void (Driver::*IntegrationFunction)(const double dt);
+    using IntegrationFunction = void(Driver::*)(const double dt);
+    // typedef void (Driver::*IntegrationFunction)(const double dt);
     IntegrationFunction Integration_;
 
     array::Double4D wu_;  // work array of conservative variavles

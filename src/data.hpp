@@ -9,7 +9,8 @@
 #include <fstream>
 #include <sys/stat.h>
 
-struct GridInfo
+
+struct InputParameters
 {
     double x1min_;
     double x2min_;
@@ -21,15 +22,17 @@ struct GridInfo
     int    nx2_;
     int    nx3_;
     int    ngh_;
-    bool   is_set_gridinfo_ = false;
-
-    void SetGridInfo();
+    double tlim_;
+    std::string dir_name_;
+    bool   is_set_params_ = false;
+    void SetParameters();
 };
+
 
 class Data
 {
 public:
-    Data(GridInfo &ginfo);
+    Data(InputParameters &input);
     ~Data();
 
     array::Double4D q_;   // primitive    variables (rho, v, p, B)
@@ -82,7 +85,6 @@ public:
 
     std::string dir_name_;
 
-    void SetData();
     void Output(const long int count);
 
 protected:
