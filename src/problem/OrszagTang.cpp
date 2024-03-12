@@ -23,8 +23,8 @@ void InputParameters::SetParameters()
     // recon_type_  = ReconstructionType::DnonerCellSheme;
     // integ_order_ = IntegratorOredr::FirstOrder;
 
-    recon_type_  = ReconstructionType::MusclMinmodScheme;
-    integ_order_ = IntegratorOredr::SecondOrder;
+    recon_type_ = ReconstructionType::MinmodScheme;
+    integ_type_ = IntegratorType::SSPRK22;
 
     is_set_params_ = true;
 }
@@ -36,8 +36,8 @@ void InitialCondition(Data *pdata)
         js = pdata->js_, je = pdata->je_,
         ks = pdata->ks_, ke = pdata->ke_;
 
-    array::Double1D x1c = pdata->x1c_;
-    array::Double1D x2c = pdata->x2c_;
+    array::Double1D x1v = pdata->x1v_;
+    array::Double1D x2v = pdata->x2v_;
     array::Double4D q   = pdata->q_;
 
     for (int k = ks; k <= ke; ++k) {
@@ -45,12 +45,12 @@ void InitialCondition(Data *pdata)
             for (int i = is; i <= ie; ++i) {
 
                 q[IRHO][k][j][i] = GAMMA * GAMMA;
-                q[IV1][k][j][i]  = -std::sin(x2c[j]);
-                q[IV2][k][j][i]  = std::sin(x1c[i]);
+                q[IV1][k][j][i]  = -std::sin(x2v[j]);
+                q[IV2][k][j][i]  = std::sin(x1v[i]);
                 q[IV3][k][j][i]  = 0.0;
                 q[IPR][k][j][i]  = GAMMA;
-                q[IB1][k][j][i]  = -std::sin(x2c[j]);
-                q[IB2][k][j][i]  = std::sin(2.0*x1c[i]);
+                q[IB1][k][j][i]  = -std::sin(x2v[j]);
+                q[IB2][k][j][i]  = std::sin(2.0*x1v[i]);
                 q[IB3][k][j][i]  = 0.0;
                 q[IPSI][k][j][i] = 0.0;
 

@@ -1,40 +1,47 @@
 #include "driver.hpp"
 
 Driver::Driver(Data *pdata, const InputParameters &input)
-    : pdata_(pdata), precon_(nullptr), peos_(nullptr), InitialCondition_(nullptr), BoundaryCondition_(nullptr), Integration_(nullptr)
+    : pdata_(pdata), precon_{nullptr, nullptr}, peos_(nullptr), InitialCondition_(nullptr), BoundaryCondition_(nullptr), Integration_(nullptr)
 {
-    int nx1totc = pdata_->nx1totc_, nx1totb = pdata_->nx1totb_,
-        nx2totc = pdata_->nx2totc_, nx2totb = pdata_->nx2totb_,
-        nx3totc = pdata_->nx3totc_, nx3totb = pdata_->nx3totb_;
+    int nx1totv = pdata_->nx1totv_, nx1totf = pdata_->nx1totf_,
+        nx2totv = pdata_->nx2totv_, nx2totf = pdata_->nx2totf_,
+        nx3totv = pdata_->nx3totv_, nx3totf = pdata_->nx3totf_;
 
-    wq_   = array::Allocate4dArray<double>(NVAR, nx3totc, nx2totc, nx1totc);
-    wu_   = array::Allocate4dArray<double>(NVAR, nx3totc, nx2totc, nx1totc);
-    flx1_ = array::Allocate4dArray<double>(NVAR, nx3totb, nx2totb, nx1totb);
-    flx2_ = array::Allocate4dArray<double>(NVAR, nx3totb, nx2totb, nx1totb);
-    flx3_ = array::Allocate4dArray<double>(NVAR, nx3totb, nx2totb, nx1totb);
-    ql_   = array::Allocate2dArray<double>(NVAR, nx1totb);
-    qlb_  = array::Allocate2dArray<double>(NVAR, nx1totb);
-    qr_   = array::Allocate2dArray<double>(NVAR, nx1totb);
+    wq_   = array::Allocate4dArray<double>(NVAR, nx3totv, nx2totv, nx1totv);
+    wu_   = array::Allocate4dArray<double>(NVAR, nx3totv, nx2totv, nx1totv);
+    flx1_ = array::Allocate4dArray<double>(NVAR, nx3totf, nx2totf, nx1totf);
+    flx2_ = array::Allocate4dArray<double>(NVAR, nx3totf, nx2totf, nx1totf);
+    flx3_ = array::Allocate4dArray<double>(NVAR, nx3totf, nx2totf, nx1totf);
+    ql_   = array::Allocate2dArray<double>(NVAR, nx1totf);
+    qlb_  = array::Allocate2dArray<double>(NVAR, nx1totf);
+    qr_   = array::Allocate2dArray<double>(NVAR, nx1totf);
 
     if (input.recon_type_ == ReconstructionType::DnonerCellSheme) {
-        precon_ = new ReconstructionDonorCellScheme(pdata);
-    } else if (input.recon_type_ == ReconstructionType::MusclMinmodScheme) {
-        precon_ = new ReconstructionMusclMinmodScheme(pdata_);
+        precon_[0] = new ReconstructionDonorCellScheme(pdata);
+        precon_[1] = new ReconstructionDonorCellScheme(pdata);
+    } else if (input.recon_type_ == ReconstructionType::MinmodScheme) {
+        precon_[0] = new ReconstructionMusclMinmodScheme(pdata_);
+        precon_[1] = new ReconstructionDonorCellScheme(pdata_);
+    } else if (input.recon_type_ == ReconstructionType::VanLeerScheme) {
+        precon_[0] = new ReconstructionMusclVanLeerScheme(pdata_);
+        precon_[1] = new ReconstructionDonorCellScheme(pdata_);
     }
 
     peos_   = new EquationOfState(pdata_);
 
     if (pdata_->xdim_ == DimensionsOfProblem::One) {
-        if (input.integ_order_ == IntegratorOredr::FirstOrder) {
-            Integration_ = &Driver::Integration1dProblemFirstOredr;
-        } else if (input.integ_order_ == IntegratorOredr::SecondOrder) {
-            Integration_ = &Driver::Integration1dProblemSecondOredr;
+        if (input.integ_type_ == IntegratorType::ForwardEuler) {
+            Integration_ = &Driver::Integration1dProblemForwardEuler;
+        } else if (input.integ_type_ == IntegratorType::SSPRK22) {
+            Integration_ = &Driver::Integration1dProblemSSPRK22;
+        } else if (input.integ_type_ == IntegratorType::PCM) {
+            Integration_ = &Driver::Integration1dProblemPCM;
         }
     } else if (pdata_->xdim_ == DimensionsOfProblem::Two) {
-        if (input.integ_order_ == IntegratorOredr::FirstOrder) {
-            Integration_ = &Driver::Integration2dProblemFirstOredr;
-        } else if (input.integ_order_ == IntegratorOredr::SecondOrder) {
-            Integration_ = &Driver::Integration2dProblemSecondOredr;
+        if (input.integ_type_ == IntegratorType::ForwardEuler) {
+            Integration_ = &Driver::Integration2dProblemForwardEuler;
+        } else if (input.integ_type_ == IntegratorType::SSPRK22) {
+            Integration_ = &Driver::Integration2dProblemSSPRK22;
         }
     } else if (pdata_->xdim_ == DimensionsOfProblem::Three) {
 
@@ -71,7 +78,8 @@ Driver::~Driver()
 }
 
 
-void Driver::CalculateFluxes(const array::Double4D q)
+
+void Driver::CalculateFluxes(const array::Double4D q, Reconstruction *precon, EquationOfState *peos)
 {
     int is = pdata_->is_, ie = pdata_->ie_,
         js = pdata_->js_, je = pdata_->je_,
@@ -101,9 +109,9 @@ void Driver::CalculateFluxes(const array::Double4D q)
     for (int k = kl; k <= ku; ++k) {
         for (int j = jl; j <= ju; ++j) {
             // reconstruct L/R state
-            precon_->CalculateReconstructionX1(k, j, is-1, ie+1, q, ql_, qr_);
+            precon->CalculateReconstructionX1(k, j, is-1, ie+1, q, ql_, qr_);
             // calculate fluxes
-            peos_->RiemannSolver(k, j, is, ie+1, idir, ql_, qr_, flx1_, ch);
+            peos->RiemannSolver(k, j, is, ie+1, idir, ql_, qr_, flx1_, ch);
         }
     }
 
@@ -123,12 +131,12 @@ void Driver::CalculateFluxes(const array::Double4D q)
 
         for (int k = kl; k <= ku; ++k) {
 
-            precon_->CalculateReconstructionX2(k, js-1, il, iu, q, ql_, qr_);
+            precon->CalculateReconstructionX2(k, js-1, il, iu, q, ql_, qr_);
 
             for (int j = js; j <= je+1; ++j) {
 
-                precon_->CalculateReconstructionX2(k, j, il, iu, q, qlb_, qr_);
-                peos_->RiemannSolver(k, j, il, iu, idir, ql_, qr_, flx2_, ch);
+                precon->CalculateReconstructionX2(k, j, il, iu, q, qlb_, qr_);
+                peos->RiemannSolver(k, j, il, iu, idir, ql_, qr_, flx2_, ch);
 
                 for (int n = 0; n < NVAR; ++n) {
                     for (int i = il; i <= iu; ++i) {
@@ -152,12 +160,12 @@ void Driver::CalculateFluxes(const array::Double4D q)
 
         for (int j = jl; j <= ju; ++j) {
 
-            precon_->CalculateReconstructionX3(ks-1, j, il, iu, q, ql_, qr_);
+            precon->CalculateReconstructionX3(ks-1, j, il, iu, q, ql_, qr_);
 
             for (int k = ks; k <= ke+1; ++k) {
 
-                precon_->CalculateReconstructionX3(k, j, il, iu, q, qlb_, qr_);
-                peos_->RiemannSolver(k, j, il, iu, idir, ql_, qr_, flx3_, ch);
+                precon->CalculateReconstructionX3(k, j, il, iu, q, qlb_, qr_);
+                peos->RiemannSolver(k, j, il, iu, idir, ql_, qr_, flx3_, ch);
 
                 for (int n = 0; n < NVAR; ++n) {
                     for (int i = il; i <= iu; ++i) {
@@ -173,7 +181,7 @@ void Driver::CalculateFluxes(const array::Double4D q)
 }
 
 
-void Driver::Integration1dProblemFirstOredr(const double dt)
+void Driver::Integration1dProblemForwardEuler(const double dt)
 {
     int is = pdata_->is_, ie = pdata_->ie_,
         js = pdata_->js_, je = pdata_->je_,
@@ -185,7 +193,7 @@ void Driver::Integration1dProblemFirstOredr(const double dt)
     inv_dx1 = 1.0 / pdata_->dx1_;
 
     BoundaryCondition_(pdata_, pdata_->q_);
-    CalculateFluxes(pdata_->q_);
+    CalculateFluxes(pdata_->q_, precon_[0], peos_);
 
     for (int n = 0; n < NVAR; ++n) {
         for (int k = ks; k <= ke; ++k) {
@@ -205,7 +213,7 @@ void Driver::Integration1dProblemFirstOredr(const double dt)
 
 
 
-void Driver::Integration1dProblemSecondOredr(const double dt)
+void Driver::Integration1dProblemSSPRK22(const double dt)
 {
     int is = pdata_->is_, ie = pdata_->ie_,
         js = pdata_->js_, je = pdata_->je_,
@@ -217,7 +225,7 @@ void Driver::Integration1dProblemSecondOredr(const double dt)
     inv_dx1 = 1.0 / pdata_->dx1_;
 
     BoundaryCondition_(pdata_, pdata_->q_);
-    CalculateFluxes(pdata_->q_);
+    CalculateFluxes(pdata_->q_, precon_[0], peos_);
 
     for (int n = 0; n < NVAR; ++n) {
         for (int k = ks; k <= ke; ++k) {
@@ -232,14 +240,14 @@ void Driver::Integration1dProblemSecondOredr(const double dt)
 
     peos_->ConvertConsToPrim(wu_, wq_);
     BoundaryCondition_(pdata_, wq_);
-    CalculateFluxes(wq_);
+    CalculateFluxes(wq_, precon_[0], peos_);
 
     for (int n = 0; n < NVAR; ++n) {
         for (int k = ks; k <= ke; ++k) {
             for (int j = js; j <= je; ++j) {
                 for (int i = is; i <= ie; ++i) {
                     dudt = - (flx1_[n][k][j][i+1] - flx1_[n][k][j][i]) * inv_dx1;
-                    pdata_->u_[n][k][j][i] = 0.5 * pdata_->u_[n][k][j][i] + 0.5 * (wu_[n][k][j][i] + dudt*dt);
+                    pdata_->u_[n][k][j][i] = 0.5 * (pdata_->u_[n][k][j][i] + wu_[n][k][j][i] + dudt*dt);
                     if (n == IPSI)  pdata_->u_[n][k][j][i] *= cd;
                 }
             }
@@ -252,7 +260,55 @@ void Driver::Integration1dProblemSecondOredr(const double dt)
 }
 
 
-void Driver::Integration2dProblemFirstOredr(const double dt)
+
+void Driver::Integration1dProblemPCM(const double dt)
+{
+    int is = pdata_->is_, ie = pdata_->ie_,
+        js = pdata_->js_, je = pdata_->je_,
+        ks = pdata_->ks_, ke = pdata_->ke_;
+
+    double cd, inv_dx1, dudt;
+    ch_ = CFL * pdata_->dx1_ / dt;
+    cd  = std::exp(-dt*ch_/CR);
+    inv_dx1 = 1.0 / pdata_->dx1_;
+
+    BoundaryCondition_(pdata_, pdata_->q_);
+    CalculateFluxes(pdata_->q_, precon_[0], peos_);
+
+    for (int n = 0; n < NVAR; ++n) {
+        for (int k = ks; k <= ke; ++k) {
+            for (int j = js; j <= je; ++j) {
+                for (int i = is; i <= ie; ++i) {
+                    wu_[n][k][j][i] = pdata_->u_[n][k][j][i] - 0.5 * dt * inv_dx1 * (flx1_[n][k][j][i+1] - flx1_[n][k][j][i]);
+                    if (n == IPSI) wu_[n][k][j][i] *= cd;
+                }
+            }
+        }
+    }
+
+    peos_->ConvertConsToPrim(wu_, wq_);
+    BoundaryCondition_(pdata_, wq_);
+    CalculateFluxes(wq_, precon_[1], peos_);
+
+    for (int n = 0; n < NVAR; ++n) {
+        for (int k = ks; k <= ke; ++k) {
+            for (int j = js; j <= je; ++j) {
+                for (int i = is; i <= ie; ++i) {
+                    dudt = - (flx1_[n][k][j][i+1] - flx1_[n][k][j][i]) * inv_dx1;
+                    pdata_->u_[n][k][j][i] = pdata_->u_[n][k][j][i] + dudt*dt;
+                    if (n == IPSI)  pdata_->u_[n][k][j][i] *= cd;
+                }
+            }
+        }
+    }
+
+    peos_->ConvertConsToPrim(pdata_->u_, pdata_->q_);
+
+    return;
+}
+
+
+void Driver::Integration2dProblemForwardEuler(const double dt)
 {
     int is = pdata_->is_, ie = pdata_->ie_,
         js = pdata_->js_, je = pdata_->je_,
@@ -267,7 +323,7 @@ void Driver::Integration2dProblemFirstOredr(const double dt)
     inv_dx2 = 1.0 / pdata_->dx2_;
 
     BoundaryCondition_(pdata_, pdata_->q_);
-    CalculateFluxes(pdata_->q_);
+    CalculateFluxes(pdata_->q_, precon_[0], peos_);
 
     for (int n = 0; n < NVAR; ++n) {
         for (int k = ks; k <= ke; ++k) {
@@ -289,7 +345,7 @@ void Driver::Integration2dProblemFirstOredr(const double dt)
 
 
 
-void Driver::Integration2dProblemSecondOredr(const double dt)
+void Driver::Integration2dProblemSSPRK22(const double dt)
 {
 int is = pdata_->is_, ie = pdata_->ie_,
         js = pdata_->js_, je = pdata_->je_,
@@ -304,7 +360,7 @@ int is = pdata_->is_, ie = pdata_->ie_,
     inv_dx2 = 1.0 / pdata_->dx2_;
 
     BoundaryCondition_(pdata_, pdata_->q_);
-    CalculateFluxes(pdata_->q_);
+    CalculateFluxes(pdata_->q_, precon_[0], peos_);
 
     for (int n = 0; n < NVAR; ++n) {
         for (int k = ks; k <= ke; ++k) {
@@ -321,7 +377,7 @@ int is = pdata_->is_, ie = pdata_->ie_,
 
     peos_->ConvertConsToPrim(wu_, wq_);
     BoundaryCondition_(pdata_, wq_);
-    CalculateFluxes(wq_);
+    CalculateFluxes(wq_, precon_[0], peos_);
 
     for (int n = 0; n < NVAR; ++n) {
         for (int k = ks; k <= ke; ++k) {

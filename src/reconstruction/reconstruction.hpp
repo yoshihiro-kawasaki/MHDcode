@@ -26,9 +26,11 @@ public:
     virtual void CalculateReconstructionX3(const int k, const int j, const int il, const int iu,
         const array::Double4D q, array::Double2D ql, array::Double2D qr) = 0;
 
-private:
+protected:
     
     Data *pdata_;
+
+private:
 
 };
 
@@ -75,6 +77,33 @@ private:
     inline double Minmod(double a, double b) {
         return 0.5 * (SIGN(a) + SIGN(b)) * std::min(std::abs(a), std::abs(b));
     }
+};
+
+// #######################################################################
+// #######################################################################
+// #######################################################################
+
+class ReconstructionMusclVanLeerScheme
+    : public Reconstruction
+{
+public:
+    ReconstructionMusclVanLeerScheme(Data *pdata);
+    ~ReconstructionMusclVanLeerScheme();
+
+    virtual void CalculateReconstructionX1(const int k, const int j, const int il, const int iu,
+        const array::Double4D q, array::Double2D ql, array::Double2D qr);
+    virtual void CalculateReconstructionX2(const int k, const int j, const int il, const int iu,
+        const array::Double4D q, array::Double2D ql, array::Double2D qr);
+    virtual void CalculateReconstructionX3(const int k, const int j, const int il, const int iu,
+        const array::Double4D q, array::Double2D ql, array::Double2D qr);
+private:
+
+    array::Double2D dql_;
+    array::Double2D dqr_;
+    array::Double2D dqm_;
+    array::Double2D qc_;
+    array::Double1D dx1p_;
+    array::Double1D dx1m_;
 };
 
 

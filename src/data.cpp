@@ -20,92 +20,116 @@ Data::Data(const InputParameters &input)
 
     if (input.recon_type_ == ReconstructionType::DnonerCellSheme) {
         ngh_ = 1;
-    } else if (input.recon_type_ == ReconstructionType::MusclMinmodScheme) {
+    } else if (input.recon_type_ == ReconstructionType::MinmodScheme || 
+               input.recon_type_ == ReconstructionType::VanLeerScheme) {
         ngh_ = 2;
     }
 
     // set grid indices
-    nx1totc_ = nx1_ + 2*ngh_;
-    nx1totb_ = nx1_ + 2*ngh_ + 1;
+    nx1totv_ = nx1_ + 2*ngh_;
+    nx1totf_ = nx1_ + 2*ngh_ + 1;
     is_      = ngh_;
     ie_      = is_ + nx1_ - 1;
     xdim_    = DimensionsOfProblem::One;
 
     if (nx2_ > 1) {
         // 2D
-        nx2totc_ = nx2_ + 2*ngh_;
-        nx2totb_ = nx2_ + 2*ngh_ + 1;
+        nx2totv_ = nx2_ + 2*ngh_;
+        nx2totf_ = nx2_ + 2*ngh_ + 1;
         js_      = ngh_;
         je_      = js_ + nx2_ - 1;
         xdim_    = DimensionsOfProblem::Two;
     } else {
         // 1D
-        nx2totc_ = 1;
-        nx2totb_ = 1;
+        nx2totv_ = 1;
+        nx2totf_ = 1;
         js_      = 0;
         je_      = 0;
     }
 
     if (nx3_ > 1) {
         // 3D
-        nx3totc_ = nx3_ + 2*ngh_;
-        nx3totb_ = nx3_ + 2*ngh_ + 1;
+        nx3totv_ = nx3_ + 2*ngh_;
+        nx3totf_ = nx3_ + 2*ngh_ + 1;
         ks_      = ngh_;
         ke_      = ks_ + nx3_ - 1;
         xdim_    = DimensionsOfProblem::Three;
     } else {
         //2D
-        nx3totc_ = 1;
-        nx3totb_ = 1;
+        nx3totv_ = 1;
+        nx3totf_ = 1;
         ks_      = 0;
         ke_      = 0;
     }
 
     // allocate arrays
-    q_    = array::Allocate4dArray<double>(NVAR, nx3totc_, nx2totc_, nx1totc_);
-    u_    = array::Allocate4dArray<double>(NVAR, nx3totc_, nx2totc_, nx1totc_);
+    q_    = array::Allocate4dArray<double>(NVAR, nx3totv_, nx2totv_, nx1totv_);
+    u_    = array::Allocate4dArray<double>(NVAR, nx3totv_, nx2totv_, nx1totv_);
     
-    x1c_  = array::Allocate1dArray<double>(nx1totc_);
-    x2c_  = array::Allocate1dArray<double>(nx1totc_);
-    x3c_  = array::Allocate1dArray<double>(nx1totc_);
+    x1v_  = array::Allocate1dArray<double>(nx1totv_);
+    x2v_  = array::Allocate1dArray<double>(nx2totv_);
+    x3v_  = array::Allocate1dArray<double>(nx3totv_);
+    dx1v_ = array::Allocate1dArray<double>(nx1totv_);
+    dx2v_ = array::Allocate1dArray<double>(nx2totv_);
+    dx3v_ = array::Allocate1dArray<double>(nx3totv_);
 
-    x1b_  = array::Allocate1dArray<double>(nx1totb_);
-    x2b_  = array::Allocate1dArray<double>(nx2totb_);
-    x3b_  = array::Allocate1dArray<double>(nx3totb_);
-
-    flx1_ = array::Allocate4dArray<double>(NVAR, nx3totb_, nx2totb_, nx1totb_);
-    flx2_ = array::Allocate4dArray<double>(NVAR, nx3totb_, nx2totb_, nx1totb_);
-    flx3_ = array::Allocate4dArray<double>(NVAR, nx3totb_, nx2totb_, nx1totb_);
+    x1f_  = array::Allocate1dArray<double>(nx1totf_);
+    x2f_  = array::Allocate1dArray<double>(nx2totf_);
+    x3f_  = array::Allocate1dArray<double>(nx3totf_);
+    dx1f_ = array::Allocate1dArray<double>(nx1totv_);
+    dx2f_ = array::Allocate1dArray<double>(nx2totv_);
+    dx3f_ = array::Allocate1dArray<double>(nx3totv_);
 
     // create grid
 
+    // x1-direction 
     dx1_ = (x1max_ - x1min_) / (nx1_);
-    for (int i = 0; i < nx1totb_; ++i) {
-        x1b_[i] = x1min_ + dx1_ * (i - (ngh_));
+    for (int i = 0; i < nx1totf_; ++i) {
+        x1f_[i] = x1min_ + dx1_ * (i - (ngh_));
     }
-    for (int i = 0; i < nx1totc_; ++i) {
-        x1c_[i] = 0.5 * (x1b_[i] + x1b_[i+1]);
+    for (int i = 0; i < nx1totv_; ++i) {
+        // dx1f_[i] = dx1_;
+        dx1f_[i] = x1f_[i+1] - x1f_[i];
+    }
+    for (int i = 0; i < nx1totv_; ++i) {
+        x1v_[i] = 0.5 * (x1f_[i] + x1f_[i+1]);
+    }
+    for (int i = 0; i < nx1totv_-1; ++i) {
+        dx1v_[i] = x1v_[i+1] - x1v_[i-1];
     }
 
     dx2_ = 0.0;
     if (xdim_ == DimensionsOfProblem::Two) {
         dx2_ = (x2max_ - x2min_) / nx2_;
-        for (int i = 0; i < nx2totb_; ++i) {
-            x2b_[i] = x2min_ + dx2_ * (i - (ngh_));
+        for (int j = 0; j < nx2totf_; ++j) {
+            x2f_[j] = x2min_ + dx2_ * (j - (ngh_));
         }
-        for (int i = 0; i < nx2totc_; ++i) {
-            x2c_[i] = 0.5 * (x2b_[i] + x2b_[i+1]);
+        for (int j = 0; j < nx1totv_; ++j) {
+            // dx1f_[j] = dx2_;
+            dx2f_[j] = x2f_[j+1] - x2f_[j];
+        }
+        for (int j = 0; j < nx2totv_; ++j) {
+            x2v_[j] = 0.5 * (x2f_[j] + x2f_[j+1]);
+        }
+        for (int j = 0; j < nx2totv_-1; ++j) {
+            dx2v_[j] = x2v_[j+1] - x2v_[j];
         }
     }
 
     dx3_ = 0.0;
     if (xdim_ == DimensionsOfProblem::Three) {
         dx3_ = (x3max_ - x3min_) / nx3_;
-        for (int i = 0; i < nx3totb_; ++i) {
-            x3b_[i] = x3min_ + dx3_ * (i - (ngh_));
+        for (int k = 0; k < nx3totf_; ++k) {
+            x3f_[k] = x3min_ + dx3_ * (k - (ngh_));
         }
-        for (int i = 0; i < nx3totc_; ++i) {
-            x3c_[i] = 0.5 * (x3b_[i] + x3b_[i+1]);
+        for (int k = 0; k < nx3totv_; ++k) {
+            dx3f_[k] = x3f_[k+1] - x3f_[k];
+        }
+        for (int k = 0; k < nx3totv_; ++k) {
+            x3v_[k] = 0.5 * (x3f_[k] + x3f_[k+1]);
+        }
+        for (int k = 0; k < nx3totv_-1; ++k) {
+            dx3v_[k] = x3v_[k+1] - x3v_[k];
         }
     }
 
@@ -118,17 +142,19 @@ Data::~Data()
         array::Delete4dArray<double>(q_);
         array::Delete4dArray<double>(u_);
 
-        array::Delete1dArray<double>(x1c_);
-        array::Delete1dArray<double>(x2c_);
-        array::Delete1dArray<double>(x3c_);
+        array::Delete1dArray<double>(x1v_);
+        array::Delete1dArray<double>(x2v_);
+        array::Delete1dArray<double>(x3v_);
+        array::Delete1dArray<double>(dx1v_);
+        array::Delete1dArray<double>(dx2v_);
+        array::Delete1dArray<double>(dx3v_);
 
-        array::Delete1dArray<double>(x1b_);
-        array::Delete1dArray<double>(x2b_);
-        array::Delete1dArray<double>(x3b_);
-
-        array::Delete4dArray<double>(flx1_);
-        array::Delete4dArray<double>(flx2_);
-        array::Delete4dArray<double>(flx3_);
+        array::Delete1dArray<double>(x1f_);
+        array::Delete1dArray<double>(x2f_);
+        array::Delete1dArray<double>(x3f_);
+        array::Delete1dArray<double>(dx1f_);
+        array::Delete1dArray<double>(dx2f_);
+        array::Delete1dArray<double>(dx3f_);
 
         is_allocate_array_ = false;
     }
@@ -145,21 +171,6 @@ void Data::Output(const long int count)
 
     file << std::scientific;
     file << time_.t_ << std::endl;
-
-    // for (int i = is; i <= ie; ++i) {
-    //     file << x1c_[i] << " ";
-    // }
-    // file << std::endl;
-
-    // for (int j = js; j <= je; ++j) {
-    //     file << x2c_[j] << " ";
-    // }
-    // file << std::endl;
-
-    // for (int k = ks; k <= ke; ++k) {
-    //     file << x3c_[k] << " ";
-    // }
-    // file << std::endl;
 
     for (int k = ks; k <= ke; ++k) {
         for (int j = js; j <= je; ++j) {
@@ -192,18 +203,18 @@ void Data::OutputGrid()
 
     file << std::scientific;
     for (int i = is; i <= ie; ++i) {
-        file << x1c_[i] << " ";
+        file << x1v_[i] << " ";
     }
     file << std::endl;
 
     for (int j = js; j <= je; ++j) {
-        file << x2c_[j] << " ";
+        file << x2v_[j] << " ";
     }
     file << std::endl;
 
 
     for (int k = ks; k <= ke; ++k) {
-        file << x3c_[k] << " ";
+        file << x3v_[k] << " ";
     }
     file << std::endl;
 }

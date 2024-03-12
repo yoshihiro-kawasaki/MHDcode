@@ -52,17 +52,20 @@ public:
 
 private:
 
-    void CalculateFluxes(const array::Double4D q);
+    // void CalculateFluxes(const array::Double4D q);
+    void CalculateFluxes(const array::Double4D q, Reconstruction *precon, EquationOfState *peos);
 
-    void Integration1dProblemFirstOredr(const double dt);
-    void Integration1dProblemSecondOredr(const double dt);
+    void Integration1dProblemForwardEuler(const double dt);
+    void Integration1dProblemSSPRK22(const double dt);
+    void Integration1dProblemPCM(const double dt);
 
-    void Integration2dProblemFirstOredr(const double dt);
-    void Integration2dProblemSecondOredr(const double dt);
+    void Integration2dProblemForwardEuler(const double dt);
+    void Integration2dProblemSSPRK22(const double dt);
+
 
     Data            *pdata_;
     EquationOfState *peos_;
-    Reconstruction  *precon_;
+    Reconstruction  *precon_[2];
 
     InitialConditionFunction  InitialCondition_;
     BoundaryConditionFunction BoundaryCondition_;

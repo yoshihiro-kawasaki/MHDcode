@@ -25,8 +25,8 @@ struct InputParameters
     double delta_tout_;
     std::string dir_name_;
     bool   is_set_params_ = false;
-    ReconstructionType recon_type_ = ReconstructionType::MusclMinmodScheme;
-    IntegratorOredr integ_order_ = IntegratorOredr::SecondOrder;
+    ReconstructionType recon_type_ = ReconstructionType::MinmodScheme;
+    IntegratorType integ_type_ = IntegratorType::SSPRK22;
     void SetParameters();
 };
 
@@ -40,27 +40,29 @@ public:
     array::Double4D q_;   // primitive    variables (rho, v, p, B)
     array::Double4D u_;   // conservative variables (rho, rhov, e, B)
 
-    array::Double4D flx1_; // numerical flux
-    array::Double4D flx2_; // numerical flux
-    array::Double4D flx3_; // numerical flux
-
-    array::Double1D x1c_; // cell central
-    array::Double1D x2c_; // cell central
-    array::Double1D x3c_; // cell central
-    array::Double1D x1b_; // cell boundary
-    array::Double1D x2b_; // cell boundary
-    array::Double1D x3b_; // cell boundary
+    array::Double1D x1v_;  // cell volume averaged position
+    array::Double1D x2v_;  // cell volume averaged position
+    array::Double1D x3v_;  // cell volume averaged position
+    array::Double1D dx1v_; // cell volume averaged spacing
+    array::Double1D dx2v_; // cell volume averaged spacing
+    array::Double1D dx3v_; // cell volume averaged spacing
+    array::Double1D x1f_;  // cell face position
+    array::Double1D x2f_;  // cell face position
+    array::Double1D x3f_;  // cell face position
+    array::Double1D dx1f_; // cell face spacing
+    array::Double1D dx2f_; // cell face sapcing
+    array::Double1D dx3f_; // cell face spacing
 
     int nx1_;
     int nx2_;
     int nx3_;
     int ngh_;
-    int nx1totc_; 
-    int nx2totc_; 
-    int nx3totc_; 
-    int nx1totb_; 
-    int nx2totb_; 
-    int nx3totb_;
+    int nx1totv_; 
+    int nx2totv_; 
+    int nx3totv_; 
+    int nx1totf_; 
+    int nx2totf_; 
+    int nx3totf_;
     double x1min_;
     double x2min_;
     double x3min_;

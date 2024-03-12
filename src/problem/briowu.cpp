@@ -3,7 +3,7 @@
 
 void InputParameters::SetParameters()
 {
-    nx1_   = 512;
+    nx1_   = 256;
     x1min_ = -0.5;
     x1max_ = 0.5;
 
@@ -20,8 +20,10 @@ void InputParameters::SetParameters()
 
     dir_name_   = "output/briowu";
 
-    recon_type_  = ReconstructionType::DnonerCellSheme;
-    integ_order_ = IntegratorOredr::FirstOrder;
+    // recon_type_  = ReconstructionType::DnonerCellSheme;
+    recon_type_ = ReconstructionType::VanLeerScheme;
+    // integ_type_ = IntegratorType::PCM;
+    integ_type_ = IntegratorType::SSPRK22;
 
     is_set_params_ = true;
 }
@@ -33,7 +35,7 @@ void InitialCondition(Data *pdata)
         js = pdata->js_, je = pdata->je_,
         ks = pdata->ks_, ke = pdata->ke_;
 
-    array::Double1D x1c = pdata->x1c_;
+    array::Double1D x1c = pdata->x1v_;
     array::Double4D q   = pdata->q_;
 
     for (int k = ks; k <= ke; ++k) {

@@ -67,13 +67,15 @@ enum class DimensionsOfProblem
 
 enum class ReconstructionType {
     DnonerCellSheme,
-    MusclMinmodScheme
+    MinmodScheme,
+    VanLeerScheme
 };
 
 
-enum class IntegratorOredr {
-    FirstOrder,
-    SecondOrder
+enum class IntegratorType {
+    ForwardEuler,
+    SSPRK22,
+    PCM
 };
 
 
