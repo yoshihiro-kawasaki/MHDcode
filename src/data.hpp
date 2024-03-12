@@ -21,10 +21,12 @@ struct InputParameters
     int    nx1_;
     int    nx2_;
     int    nx3_;
-    int    ngh_;
     double tlim_;
+    double delta_tout_;
     std::string dir_name_;
     bool   is_set_params_ = false;
+    ReconstructionType recon_type_ = ReconstructionType::MusclMinmodScheme;
+    IntegratorOredr integ_order_ = IntegratorOredr::SecondOrder;
     void SetParameters();
 };
 
@@ -32,7 +34,7 @@ struct InputParameters
 class Data
 {
 public:
-    Data(InputParameters &input);
+    Data(const InputParameters &input);
     ~Data();
 
     array::Double4D q_;   // primitive    variables (rho, v, p, B)
@@ -68,6 +70,7 @@ public:
     double dx1_;
     double dx2_;
     double dx3_;
+    DimensionsOfProblem xdim_ = DimensionsOfProblem::One;
 
     int is_;
     int js_;
@@ -86,6 +89,7 @@ public:
     std::string dir_name_;
 
     void Output(const long int count);
+    void OutputGrid();
 
 protected:
 

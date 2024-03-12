@@ -1,4 +1,5 @@
-PROGNAME := briowu
+# PROGNAME := briowu
+PROGNAME := OrszagTang
 OUTDIR := build
 SRCDIR := src
 EOSDIR := eos

@@ -3,7 +3,7 @@
 
 void InputParameters::SetParameters()
 {
-    nx1_   = 64;
+    nx1_   = 512;
     x1min_ = -0.5;
     x1max_ = 0.5;
 
@@ -15,11 +15,13 @@ void InputParameters::SetParameters()
     x3min_ = 0.0;
     x3max_ = 0.0;
 
-    ngh_   = 2;
-
-    tlim_ = 0.1;
+    tlim_       = 0.1;
+    delta_tout_ = 1.0e-2;
 
     dir_name_   = "output/briowu";
+
+    recon_type_  = ReconstructionType::DnonerCellSheme;
+    integ_order_ = IntegratorOredr::FirstOrder;
 
     is_set_params_ = true;
 }

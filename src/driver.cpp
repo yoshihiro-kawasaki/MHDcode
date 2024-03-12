@@ -1,7 +1,7 @@
 #include "driver.hpp"
 
-Driver::Driver(Data *pdata)
-    : pdata_(pdata), InitialCondition_(nullptr), BoundaryCondition_(nullptr)
+Driver::Driver(Data *pdata, const InputParameters &input)
+    : pdata_(pdata), precon_(nullptr), peos_(nullptr), InitialCondition_(nullptr), BoundaryCondition_(nullptr), Integration_(nullptr)
 {
     int nx1totc = pdata_->nx1totc_, nx1totb = pdata_->nx1totb_,
         nx2totc = pdata_->nx2totc_, nx2totb = pdata_->nx2totb_,
@@ -16,10 +16,45 @@ Driver::Driver(Data *pdata)
     qlb_  = array::Allocate2dArray<double>(NVAR, nx1totb);
     qr_   = array::Allocate2dArray<double>(NVAR, nx1totb);
 
-    // precon_ = new ReconstructionDonorCellScheme(pdata);
-    precon_ = new ReconstructionMusclMinmodScheme(pdata_);
+    if (input.recon_type_ == ReconstructionType::DnonerCellSheme) {
+        precon_ = new ReconstructionDonorCellScheme(pdata);
+    } else if (input.recon_type_ == ReconstructionType::MusclMinmodScheme) {
+        precon_ = new ReconstructionMusclMinmodScheme(pdata_);
+    }
+
     peos_   = new EquationOfState(pdata_);
-    Integration_ = &Driver::IntegrationFirstOredr1DProblem;
+
+    if (pdata_->xdim_ == DimensionsOfProblem::One) {
+        if (input.integ_order_ == IntegratorOredr::FirstOrder) {
+            Integration_ = &Driver::Integration1dProblemFirstOredr;
+        } else if (input.integ_order_ == IntegratorOredr::SecondOrder) {
+            Integration_ = &Driver::Integration1dProblemSecondOredr;
+        }
+    } else if (pdata_->xdim_ == DimensionsOfProblem::Two) {
+        if (input.integ_order_ == IntegratorOredr::FirstOrder) {
+            Integration_ = &Driver::Integration2dProblemFirstOredr;
+        } else if (input.integ_order_ == IntegratorOredr::SecondOrder) {
+            Integration_ = &Driver::Integration2dProblemSecondOredr;
+        }
+    } else if (pdata_->xdim_ == DimensionsOfProblem::Three) {
+
+    }
+
+    // check
+    if (precon_ == nullptr) {
+        std::cout << "precon == nullptr" << std::endl;
+        std::exit(1);
+    }
+
+    if (peos_ == nullptr) {
+        std::cout << "peos == nullptr" << std::endl;
+        std::exit(1);
+    }
+
+    if (Integration_ == nullptr) {
+        std::cout << "Integration == nullptr" << std::endl;
+        std::exit(1);
+    }
 }
 
 
@@ -33,9 +68,6 @@ Driver::~Driver()
     array::Delete2dArray<double>(ql_);
     array::Delete2dArray<double>(qlb_);
     array::Delete2dArray<double>(qr_);
-
-    // delete[] precon_;
-    // delete[] peos_;
 }
 
 
@@ -46,11 +78,10 @@ void Driver::CalculateFluxes(const array::Double4D q)
         ks = pdata_->ks_, ke = pdata_->ke_;
     int il, iu, jl, ju, kl, ku; // l:lower , u:upper
     int idir;
-
-     double ch;
+    double ch = ch_;
 
     // i-direction
-    idir = 1;
+    idir = CoordinateDirection::X1dir;
     jl   = js;
     ju   = je;
     kl   = ks;
@@ -77,9 +108,9 @@ void Driver::CalculateFluxes(const array::Double4D q)
     }
 
     // j-direction
-    if (pdata_->nx2_ > 1) {
+    if (pdata_->xdim_ == DimensionsOfProblem::Two) {
 
-        idir = 2;
+        idir = CoordinateDirection::X2dir;
         il = is-1;
         iu = ie+1;
         kl = ks;
@@ -111,9 +142,9 @@ void Driver::CalculateFluxes(const array::Double4D q)
     }
 
     // k-direction
-    if (pdata_->nx3_ > 1) {
+    if (pdata_->xdim_ == DimensionsOfProblem::Three) {
 
-        idir = 3;
+        idir = CoordinateDirection::X3dir;
         il = is - 1;
         iu = ie + 1;
         jl = js - 1;
@@ -142,27 +173,48 @@ void Driver::CalculateFluxes(const array::Double4D q)
 }
 
 
-void Driver::IntegrationFirstOredr1DProblem(const double dt)
-{
-    int is = pdata_->is_, ie = pdata_->ie_,
-        js = pdata_->js_, je = pdata_->je_,
-        ks = pdata_->ks_, ke = pdata_->ke_;
-
-    
-    return;
-}
-
-
-
-void Driver::IntegrationSecondOredr1DProblem(const double dt)
+void Driver::Integration1dProblemFirstOredr(const double dt)
 {
     int is = pdata_->is_, ie = pdata_->ie_,
         js = pdata_->js_, je = pdata_->je_,
         ks = pdata_->ks_, ke = pdata_->ke_;
 
     double cd, inv_dx1, dudt;
+    ch_ = CFL * pdata_->dx1_ / dt;
+    cd  = std::exp(-dt*ch_/CR);
+    inv_dx1 = 1.0 / pdata_->dx1_;
 
-    inv_dx1 = dt / pdata_->dx1_;
+    BoundaryCondition_(pdata_, pdata_->q_);
+    CalculateFluxes(pdata_->q_);
+
+    for (int n = 0; n < NVAR; ++n) {
+        for (int k = ks; k <= ke; ++k) {
+            for (int j = js; j <= je; ++j) {
+                for (int i = is; i <= ie; ++i) {
+                    pdata_->u_[n][k][j][i] = pdata_->u_[n][k][j][i] - dt * inv_dx1 * (flx1_[n][k][j][i+1] - flx1_[n][k][j][i]);
+                    if (n == IPSI) pdata_->u_[n][k][j][i] *= cd;
+                }
+            }
+        }
+    }
+
+    peos_->ConvertConsToPrim(pdata_->u_, pdata_->q_);
+    
+    return;
+}
+
+
+
+void Driver::Integration1dProblemSecondOredr(const double dt)
+{
+    int is = pdata_->is_, ie = pdata_->ie_,
+        js = pdata_->js_, je = pdata_->je_,
+        ks = pdata_->ks_, ke = pdata_->ke_;
+
+    double cd, inv_dx1, dudt;
+    ch_ = CFL * pdata_->dx1_ / dt;
+    cd  = std::exp(-dt*ch_/CR);
+    inv_dx1 = 1.0 / pdata_->dx1_;
 
     BoundaryCondition_(pdata_, pdata_->q_);
     CalculateFluxes(pdata_->q_);
@@ -198,3 +250,95 @@ void Driver::IntegrationSecondOredr1DProblem(const double dt)
 
     return;
 }
+
+
+void Driver::Integration2dProblemFirstOredr(const double dt)
+{
+    int is = pdata_->is_, ie = pdata_->ie_,
+        js = pdata_->js_, je = pdata_->je_,
+        ks = pdata_->ks_, ke = pdata_->ke_;
+
+    double cd, dxmin, inv_dx2, inv_dx1, dudt;
+
+    dxmin = std::min(pdata_->dx1_, pdata_->dx2_);
+    ch_ = CFL * dxmin / dt;
+    cd  = std::exp(-dt*ch_/CR);
+    inv_dx1 = 1.0 / pdata_->dx1_;
+    inv_dx2 = 1.0 / pdata_->dx2_;
+
+    BoundaryCondition_(pdata_, pdata_->q_);
+    CalculateFluxes(pdata_->q_);
+
+    for (int n = 0; n < NVAR; ++n) {
+        for (int k = ks; k <= ke; ++k) {
+            for (int j = js; j <= je; ++j) {
+                for (int i = is; i <= ie; ++i) {
+                    pdata_->u_[n][k][j][i] = pdata_->u_[n][k][j][i] 
+                                            - dt * ((flx1_[n][k][j][i+1] - flx1_[n][k][j][i]) * inv_dx1
+                                                  + (flx2_[n][k][j+1][i] - flx2_[n][k][j][i]) * inv_dx2);
+                    if (n == IPSI) pdata_->u_[n][k][j][i] *= cd;
+                }
+            }
+        }
+    }
+
+    peos_->ConvertConsToPrim(pdata_->u_, pdata_->q_);
+    
+    return;
+}
+
+
+
+void Driver::Integration2dProblemSecondOredr(const double dt)
+{
+int is = pdata_->is_, ie = pdata_->ie_,
+        js = pdata_->js_, je = pdata_->je_,
+        ks = pdata_->ks_, ke = pdata_->ke_;
+
+    double cd, dxmin, inv_dx2, inv_dx1, dudt;
+
+    dxmin = std::min(pdata_->dx1_, pdata_->dx2_);
+    ch_ = CFL * dxmin / dt;
+    cd  = std::exp(-dt*ch_/CR);
+    inv_dx1 = 1.0 / pdata_->dx1_;
+    inv_dx2 = 1.0 / pdata_->dx2_;
+
+    BoundaryCondition_(pdata_, pdata_->q_);
+    CalculateFluxes(pdata_->q_);
+
+    for (int n = 0; n < NVAR; ++n) {
+        for (int k = ks; k <= ke; ++k) {
+            for (int j = js; j <= je; ++j) {
+                for (int i = is; i <= ie; ++i) {
+                    wu_[n][k][j][i] = pdata_->u_[n][k][j][i] 
+                                    - dt * ((flx1_[n][k][j][i+1] - flx1_[n][k][j][i]) * inv_dx1
+                                          + (flx2_[n][k][j+1][i] - flx2_[n][k][j][i]) * inv_dx2);
+                    if (n == IPSI) wu_[n][k][j][i] *= cd;
+                }
+            }
+        }
+    }
+
+    peos_->ConvertConsToPrim(wu_, wq_);
+    BoundaryCondition_(pdata_, wq_);
+    CalculateFluxes(wq_);
+
+    for (int n = 0; n < NVAR; ++n) {
+        for (int k = ks; k <= ke; ++k) {
+            for (int j = js; j <= je; ++j) {
+                for (int i = is; i <= ie; ++i) {
+                    dudt = - (flx1_[n][k][j][i+1] - flx1_[n][k][j][i]) * inv_dx1
+                           - (flx2_[n][k][j+1][i] - flx2_[n][k][j][i]) * inv_dx2;
+                    pdata_->u_[n][k][j][i] = 0.5 * pdata_->u_[n][k][j][i] + 0.5 * (wu_[n][k][j][i] + dudt*dt);
+                    if (n == IPSI)  pdata_->u_[n][k][j][i] *= cd;
+                }
+            }
+        }
+    }
+
+    peos_->ConvertConsToPrim(pdata_->u_, pdata_->q_);
+
+    return;
+}
+
+

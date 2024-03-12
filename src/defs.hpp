@@ -51,6 +51,32 @@ enum ConservativeVariablesIndex
 // #######################################################################
 
 
+enum CoordinateDirection
+{
+    X1dir,
+    X2dir,
+    X3dir
+};
+
+enum class DimensionsOfProblem
+{
+    One = 1,
+    Two = 2,
+    Three = 3
+};
+
+enum class ReconstructionType {
+    DnonerCellSheme,
+    MusclMinmodScheme
+};
+
+
+enum class IntegratorOredr {
+    FirstOrder,
+    SecondOrder
+};
+
+
 // #######################################################################
 // #######################################################################
 // #######################################################################

@@ -18,18 +18,17 @@ int main(const int argc, const char* argv[])
 
     Data data(input);
 
-    Driver driver(&data);
+    Driver driver(&data, input);
     driver.EnrollInitialConditionFunction(InitialCondition);
     driver.EnrollBoundaryConditionFunction(BoundaryCondition);
     driver.SetInitialCondition();
 
-    data.Output(0);
-
-    return 0;
-
     // main loop 
     long int count = 0;
+    long int output_count = 0;
     double dt, tout;
+    tout = data.time_.delta_tout_;
+    data.Output(output_count);
     
     while (data.time_.t_ < data.time_.tlim_)
     {
@@ -46,8 +45,11 @@ int main(const int argc, const char* argv[])
 
         // ouput
         if (data.time_.t_ >= tout || data.time_.t_ == data.time_.tlim_) {
-            data.Output(count);
+        // if (data.time_.t_ == data.time_.tlim_) {
+            std::cout << "output : " << output_count << std::endl; 
+            data.Output(output_count);
             tout += data.time_.delta_tout_;
+            output_count++;
         }
 
     }

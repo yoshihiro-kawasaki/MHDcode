@@ -25,7 +25,7 @@ class Driver
 {
     friend class Data;
 public:
-    Driver(Data *pdata);
+    Driver(Data *pdata, const InputParameters &input);
     ~Driver();
 
     void EnrollInitialConditionFunction(InitialConditionFunction ic) {
@@ -54,8 +54,11 @@ private:
 
     void CalculateFluxes(const array::Double4D q);
 
-    void IntegrationFirstOredr1DProblem(const double dt);
-    void IntegrationSecondOredr1DProblem(const double dt);
+    void Integration1dProblemFirstOredr(const double dt);
+    void Integration1dProblemSecondOredr(const double dt);
+
+    void Integration2dProblemFirstOredr(const double dt);
+    void Integration2dProblemSecondOredr(const double dt);
 
     Data            *pdata_;
     EquationOfState *peos_;
@@ -65,7 +68,6 @@ private:
     BoundaryConditionFunction BoundaryCondition_;
 
     using IntegrationFunction = void(Driver::*)(const double dt);
-    // typedef void (Driver::*IntegrationFunction)(const double dt);
     IntegrationFunction Integration_;
 
     array::Double4D wu_;  // work array of conservative variavles
@@ -78,6 +80,8 @@ private:
     array::Double2D ql_;
     array::Double2D qlb_;
     array::Double2D qr_;
+
+    double ch_;
 };
 
 #endif /* DRIVER_HPP_ */

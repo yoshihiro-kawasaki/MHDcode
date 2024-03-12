@@ -20,12 +20,6 @@ public:
     virtual void RiemannSolver(const int k, const int j, const int is, const int ie, const int idir, 
         array::Double2D ql, array::Double2D qr, array::Double4D flx, double ch);
 
-    // void ConvertConsToPrim(const array::Double4D u, array::Double4D q);
-    // void ConvertPrimToCons(const array::Double4D q, array::Double4D u);
-    // double CalculateTimeStep();
-    // void RiemannSolver(const int k, const int j, const int is, const int ie, const int idir, 
-    //     array::Double2D ql, array::Double2D qr, array::Double4D flx, double ch);
-
 private:
     Data *pdata_;
 };

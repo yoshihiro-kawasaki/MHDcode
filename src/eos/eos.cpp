@@ -54,7 +54,7 @@ void EquationOfState::ConvertPrimToCons(const array::Double4D q, array::Double4D
         js = pdata_->js_, je = pdata_->je_,
         ks = pdata_->ks_, ke = pdata_->ke_;
 
-    double inv_gam_m1 = GAMMA - 1.0;
+    double inv_gam_m1 = 1.0 / (GAMMA - 1.0);
 
     for (int k = ks; k <= ke; ++k) {
         for (int j = js; j <= je; ++j) {
@@ -143,21 +143,21 @@ void EquationOfState::RiemannSolver(const int k, const int j, const int il, cons
     double gam        = GAMMA;
     double inv_gam_m1 = 1.0 / (gam - 1.0);
 
-    if (idir == 1) {
+    if (idir == CoordinateDirection::X1dir) {
         IVN = IV1;
         IVT = IV2;
         IVU = IV3;
         IBN = IB1;
         IBT = IB2;
         IBU = IB3;
-    } else if (idir == 2) {
+    } else if (idir == CoordinateDirection::X2dir) {
         IVN = IV2;
         IVT = IV3;
         IVU = IV1;
         IBN = IB2;
         IBT = IB3;
         IBU = IB1;
-    } else if (idir == 3) {
+    } else if (idir == CoordinateDirection::X3dir) {
         IVN = IV3;
         IVT = IV1;
         IVU = IV2;
