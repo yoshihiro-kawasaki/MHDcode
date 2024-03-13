@@ -61,6 +61,11 @@ private:
 
     void Integration2dProblemForwardEuler(const double dt);
     void Integration2dProblemSSPRK22(const double dt);
+    void Integration2dProblemPCM(const double dt);
+
+    void Integration3dProblemForwardEuler(const double dt);
+    void Integration3dProblemSSPRK22(const double dt);
+    void Integration3dProblemPCM(const double dt);
 
 
     Data            *pdata_;

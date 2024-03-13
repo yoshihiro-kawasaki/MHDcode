@@ -21,9 +21,9 @@ void InputParameters::SetParameters()
     dir_name_   = "output/briowu";
 
     // recon_type_  = ReconstructionType::DnonerCellSheme;
-    recon_type_ = ReconstructionType::VanLeerScheme;
-    // integ_type_ = IntegratorType::PCM;
-    integ_type_ = IntegratorType::SSPRK22;
+    recon_type_ = ReconstructionType::MinmodScheme;
+    integ_type_ = IntegratorType::PCM;
+    // integ_type_ = IntegratorType::SSPRK22;
 
     is_set_params_ = true;
 }
